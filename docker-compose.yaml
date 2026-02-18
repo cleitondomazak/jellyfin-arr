@@ -118,24 +118,25 @@ services:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     ports:
       - 8191:8191
-    environment:
-      - LOG_LEVEL=info
 
 ###################################
-# Jellyseer
+# Seerr
 ###################################
-  jellyseerr:
+  seerr:
     <<: *common-keys
-    image: fallenbagel/jellyseerr:latest
-    container_name: jellyseerr
-    environment:
-      PUID: 1000
-      PGID: 1000
-      TZ: Europe/Lisbon
+    image: ghcr.io/seerr-team/seerr:latest
+    init: true
+    container_name: seerr
     ports:
       - 5055:5055
     volumes:
-      - /docker/appdata/radarr:/app/config
+      - /docker/appdata/seerr:/app/config
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:5055/api/v1/status || exit 1
+      start_period: 20s
+      timeout: 3s
+      interval: 15s
+      retries: 3
     restart: unless-stopped
 
 ###############################################
