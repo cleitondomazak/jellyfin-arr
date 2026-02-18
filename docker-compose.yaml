@@ -140,6 +140,19 @@ services:
     restart: unless-stopped
 
 ###############################################
+# Maintaineer 
+###############################################
+  maintainerr:
+    <<: *common-keys
+    container_name: maintainerr
+    image: ghcr.io/maintainerr/maintainerr:latest
+    user: 1000:1000
+    volumes:
+      - /docker/appdata/maintainerr:/opt/data
+    ports:
+      - 6246:6246 
+
+
 # ARR Stack Dedicated Network
 ###############################################
 
