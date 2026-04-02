@@ -15,19 +15,45 @@ x-common-keys: &common-keys
       - 1.1.1.1
 
 services:
+  traefik:
+    image: traefik:3.6
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - 80:80
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.3.0
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+    - TUNNEL_TOKEN=XXXXXXXXXXXXXXXXXXXXXXX
+    volumes:
+      - /docker/cloudflared:/etc/cloudflared
+
 ###############################################
 # RADARR - Movies
 ###############################################
   radarr:
     <<: *common-keys
     container_name: radarr
-    image: ghcr.io/hotio/radarr:latest
-    ports:
-      - 7878:7878
+    image: ghcr.io/hotio/radarr:release-6.0.4.10291
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /docker/appdata/radarr:/config
       - /data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.radarr.rule=Host(`movie.domazak.net`)"
+      - "traefik.http.services.radarr.loadbalancer.server.port=7878"
 
 ###############################################
 # SONARR - TV Shows
@@ -36,28 +62,15 @@ services:
   sonarr:
     <<: *common-keys
     container_name: sonarr
-    image: ghcr.io/hotio/sonarr:latest
-    ports:
-      - 8989:8989
+    image: ghcr.io/hotio/sonarr:release-4.0.16.2944
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /docker/appdata/sonarr:/config
       - /data:/data
-
-###############################################
-# LIDARR - Music
-###############################################
-
-  lidarr:
-    <<: *common-keys
-    container_name: lidarr
-    image: ghcr.io/hotio/lidarr:latest
-    ports:
-      - 8686:8686
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - /docker/appdata/lidarr:/config
-      - /data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sonarr.rule=Host(`tv.domazak.net`)"
+      - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
 
 ###############################################
 # BAZARR - Subtitles
@@ -67,13 +80,14 @@ services:
     <<: *common-keys
     container_name: bazarr
     image: ghcr.io/hotio/bazarr:latest
-    ports:
-      - 6767:6767
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /docker/appdata/bazarr:/config
       - /data/media:/data/media
-
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bazarr.rule=Host(`subs.domazak.net`)"
+      - "traefik.http.services.bazarr.loadbalancer.server.port=6767"
 ###############################################
 # PROWLARR - Indexer Manager
 ###############################################
@@ -81,13 +95,14 @@ services:
   prowlarr:
     <<: *common-keys
     container_name: prowlarr
-    image: ghcr.io/hotio/prowlarr:latest
-    ports:
-      - 9696:9696
+    image: ghcr.io/hotio/prowlarr:release-2.3.0.5236
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /docker/appdata/prowlarr:/config
-
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prowlarr.rule=Host(`index.domazak.net`)"
+      - "traefik.http.services.prowlarr.loadbalancer.server.port=9696"
 ###############################################
 # QBITTORRENT - Downloader
 ###############################################
@@ -95,9 +110,8 @@ services:
   qbittorrent:
     <<: *common-keys
     container_name: qbittorrent
-    image: ghcr.io/hotio/qbittorrent:latest
+    image: ghcr.io/hotio/qbittorrent:release-5.1.4
     ports:
-      - 8080:8080
       - 6881:6881
       - 6881:6881/udp
     environment:
@@ -107,7 +121,10 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /docker/appdata/qbittorrent:/config
       - /data:/data
-
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.qbittorrent.rule=Host(`torrent.domazak.net`)"
+      - "traefik.http.services.qbittorrent.loadbalancer.server.port=8080"
 ###################################
 # FLARESOLVERR - Cloudflare Bypass
 ###################################
@@ -115,7 +132,7 @@ services:
   flaresolverr:
     <<: *common-keys
     container_name: flaresolverr
-    image: ghcr.io/flaresolverr/flaresolverr:latest
+    image: ghcr.io/flaresolverr/flaresolverr:v3.4.6
     ports:
       - 8191:8191
 
@@ -124,13 +141,13 @@ services:
 ###################################
   seerr:
     <<: *common-keys
-    image: ghcr.io/seerr-team/seerr:latest
+    image: ghcr.io/seerr-team/seerr:v3.1.0
     init: true
     container_name: seerr
-    ports:
-      - 5055:5055
     volumes:
       - /docker/appdata/seerr:/app/config
+    ports:
+      - 5055:5055
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:5055/api/v1/status || exit 1
       start_period: 20s
@@ -138,19 +155,24 @@ services:
       interval: 15s
       retries: 3
     restart: unless-stopped
-
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.seerr.rule=Host(`media.domazak.net`)"
+      - "traefik.http.services.seerr.loadbalancer.server.port=5055"
 ###############################################
 # Maintaineer 
 ###############################################
   maintainerr:
     <<: *common-keys
     container_name: maintainerr
-    image: ghcr.io/maintainerr/maintainerr:latest
+    image: ghcr.io/maintainerr/maintainerr:3.3.0
     user: 1000:1000
     volumes:
       - /docker/appdata/maintainerr:/opt/data
-    ports:
-      - 6246:6246 
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.maintainerr.rule=Host(`clean.domazak.net`)"
+      - "traefik.http.services.maintainerr.loadbalancer.server.port=6246"
 
 
 # ARR Stack Dedicated Network
