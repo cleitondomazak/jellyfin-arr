@@ -182,6 +182,31 @@ services:
       - "traefik.http.routers.maintainerr.rule=Host(`clean.domazak.net`)"
       - "traefik.http.services.maintainerr.loadbalancer.server.port=6246"
 
+
+  shelfarr:
+    <<: *common-keys
+    image: ghcr.io/pedro-revez-silva/shelfarr:latest
+    container_name: shelfarr
+    volumes:
+      - /docker/appdata/shelfarr/data:/rails/storage
+      - /data/media/ebooks:/ebooks
+      - /data:/downloads
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+      SOLID_QUEUE_IN_PUMA: 1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.shelfarr.rule=Host(`books.domazak.net`)"
+      - "traefik.http.services.shelfarr.loadbalancer.server.port=80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/up"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
 networks:
   default:
     name: arr_network
