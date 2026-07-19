@@ -20,6 +20,7 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.forwardedHeaders.trustedIPs=172.18.0.0/16"
     ports:
       - "80:80"
     volumes:
